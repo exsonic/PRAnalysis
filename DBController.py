@@ -15,3 +15,12 @@ class DBController(object):
 
 	def saveCompletedSentence(self, sentenceDict):
 		self._db.completedSentence.save(sentenceDict)
+
+	def getAllCompletedSentenceByKeyAndScore(self, key, score):
+		return self._db.completedSentence.find({key : score}, timeout = False)
+
+	def savePRArticle(self, articleDict):
+		self._db.PRArticle.save(articleDict)
+
+	def getAllPRArticle(self):
+		return self._db.PRArticle.find(timeout=False)
