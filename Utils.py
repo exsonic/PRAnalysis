@@ -51,7 +51,12 @@ def getWordDict(wordType):
 
 def getWordRegexPattern(wordType):
 	wordList = getWordList(wordType)
-	patternString = r'|'.join([r'\b' + word + r'\b' for word in wordList])
+	if wordType in [WORD_FAV_POS, WORD_FAV_NEG, WORD_CAUSE_IN, WORD_CAUSE_EX, WORD_CONTROL_LOW, WORD_CONTROL_HIGH]:
+		#FIND THE PATTERN that may contain a word within it, them check the word is in filter list or not, not is number
+		#patternString = r'|'.join([r'\b' + (r'\b[\w\d]*\b'.join(bigram.split())) + r'\b' for bigram in wordList])
+		patternString = r'|'.join([r'\b' + bigram + r'\b' for bigram in wordList])
+	else:
+		patternString = r'|'.join([r'\b' + word + r'\b' for word in wordList])
 	return re.compile(patternString, re.IGNORECASE)
 
 def lemmatize(word):
@@ -121,6 +126,6 @@ def loadPRFiles(folderPath):
 				pass
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 	#loadCompeletedCodingFile('Corpus/completed-coding.csv')
-	loadPRFiles('/Users/exsonic/Dropbox/Marshall_RA/ENRON/SP500_PR_1999_2004')
+	#loadPRFiles('/Users/exsonic/Dropbox/Marshall_RA/ENRON/SP500_PR_1999_2004')

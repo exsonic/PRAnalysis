@@ -16,6 +16,9 @@ class DBController(object):
 	def saveCompletedSentence(self, sentenceDict):
 		self._db.completedSentence.save(sentenceDict)
 
+	def getAllCompletedSentence(self):
+		return self._db.completedSentence.find(timeout = False)
+
 	def getAllCompletedSentenceByKeyAndScore(self, key, score):
 		return self._db.completedSentence.find({key : score}, timeout = False)
 

@@ -24,7 +24,8 @@ class CSVWriterThread(Thread):
 		i = 0
 		with open(self._outputfilePath, self._writeMode) as f:
 			writer = csv.writer(f)
-			writer.writerow(self._attributeLineList)
+			if self._attributeLineList:
+				writer.writerow(self._attributeLineList)
 			while True:
 				lineList = self._resultQueue.get()
 				print(i)
@@ -84,9 +85,9 @@ class ProcessThread(Thread):
 				sortedWordList = sorted(wordList, key= lambda item : item[1], reverse=True)
 
 				for wordTuple in sortedWordList:
-					#if wordTuple[1] < CUT_OFF_TIMES:
-					#	break
-					self._resultQueue.put(wordTuple)
+					if wordTuple[1] < CUT_OFF_TIMES:
+						break
+					self._resultQueue.put(wordTuple[:1])
 				self._taskQueue.task_done()
 
 	def matchKeywordWithArticle(self):
@@ -110,6 +111,39 @@ class ProcessThread(Thread):
 					self._resultQueue.put(lineList)
 				self._taskQueue.task_done()
 
+	def validate(self):
+		patternList = [getWordRegexPattern(WORD_FAV_NEG), getWordRegexPattern(WORD_FAV_POS), getWordRegexPattern(WORD_CAUSE_EX), getWordRegexPattern(WORD_CAUSE_IN), getWordRegexPattern(WORD_CONTROL_LOW), getWordRegexPattern(WORD_CONTROL_HIGH)]
+		while True:
+			sentenceList = self._taskQueue.get()
+			if sentenceList == END_OF_QUEUE:
+				self._taskQueue.task_done()
+				break
+			else:
+				for sentenceDict in sentenceList:
+					lineList = [sentenceDict['_id'], sentenceDict['OUTCOME'], sentenceDict['FAVORABILITY'], '', '', sentenceDict['CAUSE'], sentenceDict['LOCUS_CAUSALITY'], '', '', sentenceDict['CONTROLLABILITY'], '', '']
+					if sentenceDict['FAVORABILITY'] <= 2:
+						lineList[3] = patternList[0].findall(sentenceDict['OUTCOME'])
+					elif sentenceDict['FAVORABILITY'] >= 6:
+						lineList[4] = patternList[1].findall(sentenceDict['OUTCOME'])
+					if sentenceDict['LOCUS_CAUSALITY'] <= 2:
+						lineList[7] = patternList[2].findall(sentenceDict['CAUSE'])
+					elif sentenceDict['LOCUS_CAUSALITY'] >= 6:
+						lineList[8] = patternList[3].findall(sentenceDict['CAUSE'])
+					if sentenceDict['CONTROLLABILITY'] <= 2:
+						lineList[10] = patternList[4].findall(sentenceDict['CAUSE'])
+					elif sentenceDict['CONTROLLABILITY'] >= 6:
+						lineList[11] = patternList[5].findall(sentenceDict['CAUSE'])
+
+					for i, part in enumerate(lineList):
+						if i not in [0, 1, 2, 5, 6, 9]:
+							if part != [] and part != '':
+								lineList[i] = len(part)
+							else:
+								lineList[i] = 0
+
+					self._resultQueue.put(lineList)
+				self._taskQueue.task_done()
+
 
 	def run(self):
 		self._executeFunction()
@@ -123,8 +157,9 @@ class ExportMaster():
 		self._threadNumber = 1
 		self._threadList = []
 
-	def exportCompletedSentenceKeyword(self, fileName, key, score, isBigram=False):
-		attributeList = ['word', 'frequency']
+	def exportKeywordDictFromCompletedSentence(self, fileName, key, score, isBigram=False):
+		#attributeList = ['word', 'frequency']
+		attributeList = []
 		writer = CSVWriterThread(self._resultQueue, 'word/' + fileName, attributeList)
 		writer.start()
 
@@ -163,12 +198,31 @@ class ExportMaster():
 		self._resultQueue.join()
 		writer.join()
 
+	def exportDictValidation(self, fileName):
+		attributeList = ['id', 'outcome', 'favorability', 'favorability_neg', 'favoribility_pos', 'cause', 'locus_causality', 'causality_ext', 'causality_int', 'controllability', 'controlability_low', 'controlability_high']
+		writer = CSVWriterThread(self._resultQueue, 'export/' + fileName, attributeList)
+		writer.start()
+		self._taskQueue.put(self._db.getAllCompletedSentence())
+		self._taskQueue.put(END_OF_QUEUE)
+
+
+		thread = ProcessThread(self._taskQueue, self._resultQueue)
+		thread._executeFunction = thread.validate
+		thread.start()
+
+		self._taskQueue.join()
+		thread.join()
+		self._resultQueue.put(END_OF_QUEUE)
+		self._resultQueue.join()
+		writer.join()
+
 if __name__ == '__main__':
 	exporter = ExportMaster()
-	exporter.exportCompletedSentenceKeyword('favorability_neg.csv', KEY_FAV, 1, True)
-	exporter.exportCompletedSentenceKeyword('favorability_pos.csv', KEY_FAV, 7, True)
-	exporter.exportCompletedSentenceKeyword('causality_ext.csv', KEY_CAUSE, 1, True)
-	exporter.exportCompletedSentenceKeyword('causality_int.csv', KEY_CAUSE, 7, True)
-	exporter.exportCompletedSentenceKeyword('controlability_low.csv', KEY_CONTROL, 1, True)
-	exporter.exportCompletedSentenceKeyword('controlability_high.csv', KEY_CONTROL, 7,True)
+	#exporter.exportKeywordDictFromCompletedSentence('favorability_neg.csv', KEY_FAV, 1, True)
+	#exporter.exportKeywordDictFromCompletedSentence('favorability_pos.csv', KEY_FAV, 7, True)
+	#exporter.exportKeywordDictFromCompletedSentence('causality_ext.csv', KEY_CAUSE, 1, True)
+	#exporter.exportKeywordDictFromCompletedSentence('causality_int.csv', KEY_CAUSE, 7, True)
+	#exporter.exportKeywordDictFromCompletedSentence('controlability_low.csv', KEY_CONTROL, 1, True)
+	#exporter.exportKeywordDictFromCompletedSentence('controlability_high.csv', KEY_CONTROL, 7,True)
 	#exporter.exportArticleKeywordMatch('output_Mcd_dic.csv', True)
+	exporter.exportDictValidation('dict_validation.csv')
