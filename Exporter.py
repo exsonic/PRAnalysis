@@ -7,7 +7,7 @@ import os
 from threading import Thread
 from Settings import *
 from DBController import DBController
-from Utils import sentenceToWordList, getWordDict, getWordRegexPattern, getNGramTupleList
+from Utils import sentenceToWordList, getWordDict, getWordRegexPattern, getNGramTupleList, getValidBigramMatchCount, getBigramWordRegexPatternList
 
 
 class CSVWriterThread(Thread):
@@ -112,7 +112,8 @@ class ProcessThread(Thread):
 				self._taskQueue.task_done()
 
 	def validate(self):
-		patternList = [getWordRegexPattern(WORD_FAV_NEG), getWordRegexPattern(WORD_FAV_POS), getWordRegexPattern(WORD_CAUSE_EX), getWordRegexPattern(WORD_CAUSE_IN), getWordRegexPattern(WORD_CONTROL_LOW), getWordRegexPattern(WORD_CONTROL_HIGH)]
+		patternListList = [getBigramWordRegexPatternList(WORD_FAV_NEG), getBigramWordRegexPatternList(WORD_FAV_POS), getBigramWordRegexPatternList(WORD_CAUSE_EX), getBigramWordRegexPatternList(WORD_CAUSE_IN), getBigramWordRegexPatternList(WORD_CONTROL_LOW), getBigramWordRegexPatternList(WORD_CONTROL_HIGH)]
+		filterWordDict = getWordDict(WORD_FILTER)
 		while True:
 			sentenceList = self._taskQueue.get()
 			if sentenceList == END_OF_QUEUE:
@@ -120,26 +121,20 @@ class ProcessThread(Thread):
 				break
 			else:
 				for sentenceDict in sentenceList:
-					lineList = [sentenceDict['_id'], sentenceDict['OUTCOME'], sentenceDict['FAVORABILITY'], '', '', sentenceDict['CAUSE'], sentenceDict['LOCUS_CAUSALITY'], '', '', sentenceDict['CONTROLLABILITY'], '', '']
+					lineList = [sentenceDict['_id'], sentenceDict['OUTCOME'], sentenceDict['FAVORABILITY'], 0, 0, sentenceDict['CAUSE'], sentenceDict['LOCUS_CAUSALITY'], 0, 0, sentenceDict['CONTROLLABILITY'], 0, 0]
+					#loop key and linelist index
 					if sentenceDict['FAVORABILITY'] <= 2:
-						lineList[3] = patternList[0].findall(sentenceDict['OUTCOME'])
+						lineList[3] = getValidBigramMatchCount(sentenceDict['OUTCOME'], patternListList[0], filterWordDict)
 					elif sentenceDict['FAVORABILITY'] >= 6:
-						lineList[4] = patternList[1].findall(sentenceDict['OUTCOME'])
+						lineList[4] = getValidBigramMatchCount(sentenceDict['OUTCOME'], patternListList[1], filterWordDict)
 					if sentenceDict['LOCUS_CAUSALITY'] <= 2:
-						lineList[7] = patternList[2].findall(sentenceDict['CAUSE'])
+						lineList[7] = getValidBigramMatchCount(sentenceDict['CAUSE'], patternListList[2], filterWordDict)
 					elif sentenceDict['LOCUS_CAUSALITY'] >= 6:
-						lineList[8] = patternList[3].findall(sentenceDict['CAUSE'])
+						lineList[8] = getValidBigramMatchCount(sentenceDict['CAUSE'], patternListList[3], filterWordDict)
 					if sentenceDict['CONTROLLABILITY'] <= 2:
-						lineList[10] = patternList[4].findall(sentenceDict['CAUSE'])
+						lineList[10] = getValidBigramMatchCount(sentenceDict['CAUSE'], patternListList[4], filterWordDict)
 					elif sentenceDict['CONTROLLABILITY'] >= 6:
-						lineList[11] = patternList[5].findall(sentenceDict['CAUSE'])
-
-					for i, part in enumerate(lineList):
-						if i not in [0, 1, 2, 5, 6, 9]:
-							if part != [] and part != '':
-								lineList[i] = len(part)
-							else:
-								lineList[i] = 0
+						lineList[11] = getValidBigramMatchCount(sentenceDict['CAUSE'], patternListList[5], filterWordDict)
 
 					self._resultQueue.put(lineList)
 				self._taskQueue.task_done()

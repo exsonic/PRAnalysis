@@ -51,13 +51,31 @@ def getWordDict(wordType):
 
 def getWordRegexPattern(wordType):
 	wordList = getWordList(wordType)
-	if wordType in [WORD_FAV_POS, WORD_FAV_NEG, WORD_CAUSE_IN, WORD_CAUSE_EX, WORD_CONTROL_LOW, WORD_CONTROL_HIGH]:
-		#FIND THE PATTERN that may contain a word within it, them check the word is in filter list or not, not is number
-		#patternString = r'|'.join([r'\b' + (r'\b[\w\d]*\b'.join(bigram.split())) + r'\b' for bigram in wordList])
-		patternString = r'|'.join([r'\b' + bigram + r'\b' for bigram in wordList])
-	else:
-		patternString = r'|'.join([r'\b' + word + r'\b' for word in wordList])
+	patternString = r'|'.join([r'\b' + word + r'\b' for word in wordList])
 	return re.compile(patternString, re.IGNORECASE)
+
+def getBigramWordRegexPatternList(wordType):
+	wordList = getWordList(wordType)
+	patternList = []
+	#FIND THE PATTERN that may contain a word within it, them check the word is in filter list or not, not is number
+	for bigram in wordList:
+		patternString = r'\b' + (bigram.split()[0] + r'( [\w\d]+)* ') + bigram.split()[1] + r'\b'
+		patternList.append(re.compile(patternString, re.IGNORECASE))
+	return patternList
+
+def getValidBigramMatchCount(text, patternList, filterWordDict):
+	count = 0
+	for pattern in patternList:
+		matchedObject = pattern.search(text)
+		if matchedObject:
+			isValid = True
+			wordString = matchedObject.group()
+			for middleWord in wordString.split()[1:-1]:
+				if middleWord not in filterWordDict and not unicode.isdigit(middleWord):
+					isValid = False
+					break
+			count = count + 1 if isValid else count
+	return count
 
 def lemmatize(word):
 	lemmatizedWord = lemmatizer.lemmatize(word, NOUN)
@@ -90,7 +108,6 @@ def getNGramTupleList(wordList, n):
 		else:
 			break
 	return tupleList
-
 
 def loadCompeletedCodingFile(filePath):
 	db = DBController()
