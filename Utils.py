@@ -52,38 +52,24 @@ def getWordDict(wordType):
 	return dict(zip(wordList, [0] * len(wordList)))
 
 
-def getWordRegexPatternList(wordType):
+def getWordRegexPattern(wordType):
 	#check the word is unigram or bigram, then use different pattern paradigm
 	wordList = getWordList(wordType)
-	patternList = []
+	wordPatternStringList = []
 	for wordString in wordList:
-		if 1 == len(wordString.split()):
-			#unigram
-			patternString = r'\b' + wordString + r'\b'
-		else:
-			#bigram, FIND THE PATTERN that may contain a word within it, them check the word is in filter list or not, not is number
-			patternString = r'\b' + (wordString.split()[0] + r'( [\w\d]+)* ') + wordString.split()[1] + r'\b'
-		patternList.append(re.compile(patternString, re.IGNORECASE))
-	return patternList
+		#patternString = r'\b' + (wordString.split()[0] + r'( [\w\d]+)* ') + wordString.split()[1] + r'\b'
+		wordPatternString = wordString if 1 == len(wordString.split()) else ' '.join(wordString.split())
+		wordPatternString = r'\b' + wordPatternString + r'\b'
+		wordPatternStringList.append(wordPatternString)
+	patternString = r'|'.join(wordPatternStringList)
+	pattern = re.compile(patternString, re.IGNORECASE)
+	return pattern
 
 
-def getMatchWordListFromPatternList(text, patternList, filterWordDict):
-	#this will take care of unigram and bigram match, you can get the count just by len()
-	matchedWordList = []
+def getMatchWordListFromPattern(text, pattern, filterWordDict):
 	#filter and lemmatize the input text
 	text = ' '.join(sentenceToWordList(text, filterWordDict))
-	for pattern in patternList:
-		matchedObject = pattern.search(text)
-		if matchedObject:
-			isValid = True
-			wordString = matchedObject.group()
-			for middleWord in wordString.split()[1:-1]:
-				if middleWord not in filterWordDict and not unicode.isdigit(middleWord):
-					isValid = False
-					break
-			if isValid:
-				matchedWordList.append(wordString)
-	return matchedWordList
+	return pattern.findall(text)
 
 
 def lemmatize(word):

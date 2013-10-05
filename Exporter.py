@@ -7,7 +7,7 @@ import os
 from threading import Thread
 from Settings import *
 from DBController import DBController
-from Utils import sentenceToWordList, getWordDict, getNGramTupleList, getMatchWordListFromPatternList, getWordRegexPatternList
+from Utils import sentenceToWordList, getWordDict, getNGramTupleList, getMatchWordListFromPattern, getWordRegexPattern
 
 
 class CSVWriterThread(Thread):
@@ -94,9 +94,9 @@ class ProcessThread(Thread):
 		isMcDDict = self._args[0]
 		filterWordDict = getWordDict(WORD_FILTER)
 		if isMcDDict:
-			patternListList = [getWordRegexPatternList(MCD_LITIGIOUS), getWordRegexPatternList(MCD_MODAL_STRONG), getWordRegexPatternList(MCD_MODAL_WEAK), getWordRegexPatternList(MCD_POS), getWordRegexPatternList(MCD_NEG), getWordRegexPatternList(MCD_UNCERTAIN)]
+			patternList = [getWordRegexPattern(MCD_LITIGIOUS), getWordRegexPattern(MCD_MODAL_STRONG), getWordRegexPattern(MCD_MODAL_WEAK), getWordRegexPattern(MCD_POS), getWordRegexPattern(MCD_NEG), getWordRegexPattern(MCD_UNCERTAIN)]
 		else:
-			patternListList = [getWordRegexPatternList(WORD_FAV_POS), getWordRegexPatternList(WORD_FAV_NEG), getWordRegexPatternList(WORD_CAUSE_IN), getWordRegexPatternList(WORD_CAUSE_EX), getWordRegexPatternList(WORD_CONTROL_LOW), getWordRegexPatternList(WORD_CONTROL_HIGH)]
+			patternList = [getWordRegexPattern(WORD_FAV_POS), getWordRegexPattern(WORD_FAV_NEG), getWordRegexPattern(WORD_CAUSE_IN), getWordRegexPattern(WORD_CAUSE_EX), getWordRegexPattern(WORD_CONTROL_LOW), getWordRegexPattern(WORD_CONTROL_HIGH)]
 		while True:
 			articleList = self._taskQueue.get()
 			if articleList == END_OF_QUEUE:
@@ -104,16 +104,17 @@ class ProcessThread(Thread):
 				break
 			else:
 				for articleDict in articleList:
-					lineList = [articleDict['_id']] + [''] * (2 * NUM_OF_WORD_TYPE)
-					for i, patternList in enumerate(patternListList):
-						matchedWordList = getMatchWordListFromPatternList(articleDict['text'], patternList, filterWordDict)
-						lineList[i + 1] = len(matchedWordList)
-						lineList[i + NUM_OF_WORD_TYPE + 1] = ', '.join(matchedWordList)
+					totalWordCount = len(articleDict['text'].split())
+					lineList = [articleDict['_id'], totalWordCount] + [''] * (2 * NUM_OF_WORD_TYPE)
+					for i, pattern in enumerate(patternList):
+						matchedWordList = getMatchWordListFromPattern(articleDict['text'], pattern, filterWordDict)
+						lineList[i + 2] = len(matchedWordList)
+						lineList[i + NUM_OF_WORD_TYPE + 2] = ', '.join(matchedWordList)
 					self._resultQueue.put(lineList)
 				self._taskQueue.task_done()
 
 	def validate(self):
-		patternListList = [getWordRegexPatternList(WORD_FAV_NEG), getWordRegexPatternList(WORD_FAV_POS), getWordRegexPatternList(WORD_CAUSE_EX), getWordRegexPatternList(WORD_CAUSE_IN), getWordRegexPatternList(WORD_CONTROL_LOW), getWordRegexPatternList(WORD_CONTROL_HIGH)]
+		patternList = [getWordRegexPattern(WORD_FAV_NEG), getWordRegexPattern(WORD_FAV_POS), getWordRegexPattern(WORD_CAUSE_EX), getWordRegexPattern(WORD_CAUSE_IN), getWordRegexPattern(WORD_CONTROL_LOW), getWordRegexPattern(WORD_CONTROL_HIGH)]
 		filterWordDict = getWordDict(WORD_FILTER)
 		while True:
 			sentenceList = self._taskQueue.get()
@@ -125,23 +126,23 @@ class ProcessThread(Thread):
 					lineList = [sentenceDict['_id'], sentenceDict['OUTCOME'], sentenceDict['FAVORABILITY'], 0, 0, sentenceDict['CAUSE'], sentenceDict['LOCUS_CAUSALITY'], 0, 0, sentenceDict['CONTROLLABILITY'], 0, 0]
 					#loop key and linelist index
 					if sentenceDict['FAVORABILITY'] <= 2:
-						#lineList[3] = len(getMatchWordListFromPatternList(sentenceDict['OUTCOME'], patternListList[0], filterWordDict))
-						lineList[3] = ' '.join(getMatchWordListFromPatternList(sentenceDict['OUTCOME'], patternListList[0], filterWordDict))
+						#lineList[3] = len(getMatchWordListFromPattern(sentenceDict['OUTCOME'], patternList[0], filterWordDict))
+						lineList[3] = ' '.join(getMatchWordListFromPattern(sentenceDict['OUTCOME'], patternList[0], filterWordDict))
 					elif sentenceDict['FAVORABILITY'] >= 6:
-						#lineList[4] = len(getMatchWordListFromPatternList(sentenceDict['OUTCOME'], patternListList[1], filterWordDict))
-						lineList[4] = ' '.join(getMatchWordListFromPatternList(sentenceDict['OUTCOME'], patternListList[1], filterWordDict))
+						#lineList[4] = len(getMatchWordListFromPattern(sentenceDict['OUTCOME'], patternList[1], filterWordDict))
+						lineList[4] = ' '.join(getMatchWordListFromPattern(sentenceDict['OUTCOME'], patternList[1], filterWordDict))
 					if sentenceDict['LOCUS_CAUSALITY'] <= 2:
-						#lineList[7] = len(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[2], filterWordDict))
-						lineList[7] = ' '.join(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[2], filterWordDict))
+						#lineList[7] = len(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[2], filterWordDict))
+						lineList[7] = ' '.join(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[2], filterWordDict))
 					elif sentenceDict['LOCUS_CAUSALITY'] >= 6:
-						#lineList[8] = len(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[3], filterWordDict))
-						lineList[8] = ' '.join(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[3], filterWordDict))
+						#lineList[8] = len(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[3], filterWordDict))
+						lineList[8] = ' '.join(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[3], filterWordDict))
 					if sentenceDict['CONTROLLABILITY'] <= 2:
-						#lineList[10] = len(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[4], filterWordDict))
-						lineList[10] = ' '.join(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[4], filterWordDict))
+						#lineList[10] = len(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[4], filterWordDict))
+						lineList[10] = ' '.join(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[4], filterWordDict))
 					elif sentenceDict['CONTROLLABILITY'] >= 6:
-						#lineList[11] = len(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[5], filterWordDict))
-						lineList[11] = ' '.join(getMatchWordListFromPatternList(sentenceDict['CAUSE'], patternListList[5], filterWordDict))
+						#lineList[11] = len(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[5], filterWordDict))
+						lineList[11] = ' '.join(getMatchWordListFromPattern(sentenceDict['CAUSE'], patternList[5], filterWordDict))
 
 					self._resultQueue.put(lineList)
 				self._taskQueue.task_done()
@@ -180,22 +181,30 @@ class ExportMaster():
 
 	def exportArticleKeywordMatch(self, fileName, isMcDDict):
 		if isMcDDict:
-			attributeList = ['PR_ID', 'litigous', 'Mod_strong', 'Mod_weak', 'Pos', 'Neg', 'Uncer', 'litigous_words', 'Mod_strong_words', 'Mod_weak_word', 'Pos_words', 'Neg_words', 'Uncer_words']
+			attributeList = ['PR_ID', 'total_word_count', 'litigous', 'Mod_strong', 'Mod_weak', 'Pos', 'Neg', 'Uncer', 'litigous_words', 'Mod_strong_words', 'Mod_weak_word', 'Pos_words', 'Neg_words', 'Uncer_words']
 		else:
-			attributeList = ['PR_ID', 'fav_pos', 'fav_neg', 'cau_int', 'cau_ext', 'cont_h',	'cont_l', 'fav_pos_words', 'fav_neg_word', 'cau_int_word', 'cau_ext_words', 'cont_h_words', 'cont_l_words']
+			attributeList = ['PR_ID', 'total_word_count', 'fav_pos', 'fav_neg', 'cau_int', 'cau_ext', 'cont_h',	'cont_l', 'fav_pos_words', 'fav_neg_word', 'cau_int_word', 'cau_ext_words', 'cont_h_words', 'cont_l_words']
 		writer = CSVWriterThread(self._resultQueue, 'export/' + fileName, attributeList)
 		writer.start()
 
-		self._taskQueue.put(self._db.getAllPRArticle())
-		self._taskQueue.put(END_OF_QUEUE)
+		articleList = list(self._db.getAllPRArticle())
+		chunkSize = len(articleList)/self._threadNumber
+		for i in range(0, len(articleList), chunkSize):
+			self._taskQueue.put(articleList[i: i+chunkSize])
 
+		for i in range(0, self._threadNumber):
+			self._taskQueue.put(END_OF_QUEUE)
 
-		thread = ProcessThread(self._taskQueue, self._resultQueue, isMcDDict)
-		thread._executeFunction = thread.matchKeywordWithArticle
-		thread.start()
+		threadList = []
+		for i in range(self._threadNumber):
+			thread = ProcessThread(self._taskQueue, self._resultQueue, isMcDDict)
+			thread._executeFunction = thread.matchKeywordWithArticle
+			thread.start()
+			threadList.append(thread)
 
+		for thread in threadList:
+			thread.join()
 		self._taskQueue.join()
-		thread.join()
 		self._resultQueue.put(END_OF_QUEUE)
 		self._resultQueue.join()
 		writer.join()
@@ -226,5 +235,5 @@ if __name__ == '__main__':
 	#exporter.exportKeywordDictFromCompletedSentence('causality_int.csv', KEY_CAUSE, 7, True)
 	#exporter.exportKeywordDictFromCompletedSentence('controlability_low.csv', KEY_CONTROL, 1, True)
 	#exporter.exportKeywordDictFromCompletedSentence('controlability_high.csv', KEY_CONTROL, 7,True)
-	#exporter.exportArticleKeywordMatch('output_Mcd_dic.csv', True)
-	exporter.exportDictValidation('dict_validation.csv')
+	exporter.exportArticleKeywordMatch('output_att_dic.csv', False)
+	#exporter.exportDictValidation('dict_validation.csv')
