@@ -183,7 +183,7 @@ class ExportMaster():
 		if isMcDDict:
 			attributeList = ['PR_ID', 'total_word_count', 'litigous', 'Mod_strong', 'Mod_weak', 'Pos', 'Neg', 'Uncer', 'litigous_words', 'Mod_strong_words', 'Mod_weak_word', 'Pos_words', 'Neg_words', 'Uncer_words']
 		else:
-			attributeList = ['PR_ID', 'total_word_count', 'fav_pos', 'fav_neg', 'cau_int', 'cau_ext', 'cont_h',	'cont_l', 'fav_pos_words', 'fav_neg_word', 'cau_int_word', 'cau_ext_words', 'cont_h_words', 'cont_l_words']
+			attributeList = ['PR_ID', 'total_word_count', 'fav_pos', 'fav_neg', 'cau_int', 'cau_ext', 'cont_l',	'cont_h', 'fav_pos_words', 'fav_neg_word', 'cau_int_word', 'cau_ext_words', 'cont_l_words', 'cont_h_words']
 		writer = CSVWriterThread(self._resultQueue, 'export/' + fileName, attributeList)
 		writer.start()
 
